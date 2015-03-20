@@ -19,7 +19,6 @@ def multiply(x, y):
             ((y>>4 & 1) * xtime(xtime(xtime(xtime(x))))))  
 
 class aes128_ecb_decryptor:
-
     # the number of columns comprising a state in AES. This is a constant in AES. Value=4
     nb = 4
     # the number of 32 bit words in a key.
@@ -187,15 +186,15 @@ class aes128_ecb_decryptor:
         self.inv_sub_bytes(block);
         self.add_round_key(block, 0)
         # bytes to chars
-        return "".join(chr(b) for b in block)
+        return block
         
     def decrypt(self, txt, key):
         self.key_expansion(key)
-        ret = ""
+        ret = array.array('B', [])
         for i in  range(len(txt) / aes128_ecb_decryptor.keylen):
             block = array.array('B', txt[i * aes128_ecb_decryptor.keylen : (i + 1) * aes128_ecb_decryptor.keylen])
             ret += self.inv_cipher(block)
-        return ret
+        return "".join(chr(b) for b in ret)
 
 def get_text():
     response = urllib2.urlopen('http://cryptopals.com/static/challenge-data/7.txt')
