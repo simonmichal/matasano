@@ -7,6 +7,7 @@ Created on 18 Nov 2014
 import array
 import base64
 import urllib2
+from IN import TMP_MAX
 
 def xor_bytes(byte_arr1, byte_arr2):
     # create a byte array of xors
@@ -22,7 +23,7 @@ def multiply(x, y):
             ((y>>3 & 1) * xtime(xtime(xtime(x)))) ^ 
             ((y>>4 & 1) * xtime(xtime(xtime(xtime(x))))))  
 
-class aes128_decryptor:
+class aes128:
     # the number of columns comprising a state in AES. This is a constant in AES. Value=4
     nb = 4
     # the number of 32 bit words in a key.
@@ -95,16 +96,16 @@ class aes128_decryptor:
     def key_expansion(self, key): # the key length has to be 16 !
         self.round_key = array.array('B', [0] * 176)
         #  the first round key is the key itself.
-        for i in range(aes128_decryptor.keylen):
+        for i in range(aes128.keylen):
             self.round_key[i] = ord(key[i])
         # all other round keys are found from the previous round keys
-        for i in range(aes128_decryptor.nk, aes128_decryptor.nb * (aes128_decryptor.nr + 1)):
+        for i in range(aes128.nk, aes128.nb * (aes128.nr + 1)):
             # take 4 subsequent bytes from the round key
-            arr = array.array('B', [0] * aes128_decryptor.nk)
-            for j in range(aes128_decryptor.nk):
+            arr = array.array('B', [0] * aes128.nk)
+            for j in range(aes128.nk):
                 arr[j] = self.round_key[(i - 1) * 4 + j];
                 
-            if i % aes128_decryptor.nk == 0:
+            if i % aes128.nk == 0:
                 # rotate the 4 bytes in a word to the left once
                 # [a0,a1,a2,a3] becomes [a1,a2,a3,a0]
                 k = arr[0];
@@ -114,72 +115,121 @@ class aes128_decryptor:
                 arr[3] = k;
                 # take a four-byte input word and apply the S-box to 
                 # each of the four bytes to produce an output word
-                arr[0] = aes128_decryptor.sbox[arr[0]];
-                arr[1] = aes128_decryptor.sbox[arr[1]];
-                arr[2] = aes128_decryptor.sbox[arr[2]];
-                arr[3] = aes128_decryptor.sbox[arr[3]];
+                arr[0] = aes128.sbox[arr[0]];
+                arr[1] = aes128.sbox[arr[1]];
+                arr[2] = aes128.sbox[arr[2]];
+                arr[3] = aes128.sbox[arr[3]];
                 # xor with a round constant word
-                arr[0] =  arr[0] ^ aes128_decryptor.rcon[i / aes128_decryptor.nk];
+                arr[0] =  arr[0] ^ aes128.rcon[i / aes128.nk];
             # the each byte is xored with an respective byte from the previous word
-            for j in range(aes128_decryptor.nk):
-                self.round_key[i * 4 + j] = self.round_key[(i - aes128_decryptor.nk) * 4 + j] ^ arr[j]
+            for j in range(aes128.nk):
+                self.round_key[i * 4 + j] = self.round_key[(i - aes128.nk) * 4 + j] ^ arr[j]
        
     def add_round_key(self, block, round):
-        for i in range(aes128_decryptor.nk):
-            for j in range(aes128_decryptor.nk):
-                block[i * aes128_decryptor.nk + j] ^= self.round_key[round * aes128_decryptor.nb * aes128_decryptor.nk + i * aes128_decryptor.nb + j]
+        for i in range(aes128.nk):
+            for j in range(aes128.nk):
+                block[i * aes128.nk + j] ^= self.round_key[round * aes128.nb * aes128.nk + i * aes128.nb + j]
     
     def inv_shift_rows(self, block):
         # rotate first row 1 columns to right  
-        tmp = block[3 * aes128_decryptor.nk + 1]
-        block[3 * aes128_decryptor.nk + 1] = block[2 * aes128_decryptor.nk + 1]
-        block[2 * aes128_decryptor.nk + 1] = block[1 * aes128_decryptor.nk + 1]
-        block[1 * aes128_decryptor.nk + 1] = block[0 * aes128_decryptor.nk + 1]
-        block[0 * aes128_decryptor.nk + 1] = tmp
+        tmp                      = block[3 * aes128.nk + 1]
+        block[3 * aes128.nk + 1] = block[2 * aes128.nk + 1]
+        block[2 * aes128.nk + 1] = block[1 * aes128.nk + 1]
+        block[1 * aes128.nk + 1] = block[0 * aes128.nk + 1]
+        block[0 * aes128.nk + 1] = tmp
         # rotate second row 2 columns to right 
-        tmp = block[0 * aes128_decryptor.nk + 2]
-        block[0 * aes128_decryptor.nk + 2] = block[2 * aes128_decryptor.nk + 2]
-        block[2 * aes128_decryptor.nk + 2] = tmp
+        tmp                      = block[0 * aes128.nk + 2]
+        block[0 * aes128.nk + 2] = block[2 * aes128.nk + 2]
+        block[2 * aes128.nk + 2] = tmp
 
-        tmp = block[1 * aes128_decryptor.nk + 2]        
-        block[1 * aes128_decryptor.nk + 2] = block[3 * aes128_decryptor.nk + 2]
-        block[3 * aes128_decryptor.nk + 2] = tmp
+        tmp                      = block[1 * aes128.nk + 2]        
+        block[1 * aes128.nk + 2] = block[3 * aes128.nk + 2]
+        block[3 * aes128.nk + 2] = tmp
         
         # rotate third row 3 columns to right
-        tmp = block[0 * aes128_decryptor.nk + 3]
-        block[0 * aes128_decryptor.nk + 3] = block[1 * aes128_decryptor.nk + 3]
-        block[1 * aes128_decryptor.nk + 3] = block[2 * aes128_decryptor.nk + 3]
-        block[2 * aes128_decryptor.nk + 3] = block[3 * aes128_decryptor.nk + 3]
-        block[3 * aes128_decryptor.nk + 3] = tmp
+        tmp                      = block[0 * aes128.nk + 3]
+        block[0 * aes128.nk + 3] = block[1 * aes128.nk + 3]
+        block[1 * aes128.nk + 3] = block[2 * aes128.nk + 3]
+        block[2 * aes128.nk + 3] = block[3 * aes128.nk + 3]
+        block[3 * aes128.nk + 3] = tmp
+
+    def shift_rows(self, block):
+        # rotate first row 1 columns to left  
+        tmp                      = block[0 * aes128.nk + 1]
+        block[0 * aes128.nk + 1] = block[1 * aes128.nk + 1]
+        block[1 * aes128.nk + 1] = block[2 * aes128.nk + 1]
+        block[2 * aes128.nk + 1] = block[3 * aes128.nk + 1]
+        block[3 * aes128.nk + 1] = tmp
+        # rotate second row 2 columns to left  
+        tmp                      = block[0 * aes128.nk + 2]
+        block[0 * aes128.nk + 2] = block[2 * aes128.nk + 2]
+        block[2 * aes128.nk + 2] = tmp
+
+        tmp                      = block[1 * aes128.nk + 2]        
+        block[1 * aes128.nk + 2] = block[3 * aes128.nk + 2]
+        block[3 * aes128.nk + 2] = tmp
+
+        # rotate third row 3 columns to left
+        tmp                      = block[0 * aes128.nk + 3]
+        block[0 * aes128.nk + 3] = block[3 * aes128.nk + 3]
+        block[3 * aes128.nk + 3] = block[2 * aes128.nk + 3]
+        block[2 * aes128.nk + 3] = block[1 * aes128.nk + 3]
+        block[1 * aes128.nk + 3] = tmp
 
     def inv_sub_bytes(self, block):
-        for i in range(aes128_decryptor.nk):
-            for j in range(aes128_decryptor.nk):
-                block[j * aes128_decryptor.nk + i] = aes128_decryptor.rsbox[block[j * aes128_decryptor.nk + i]]
+        for i in range(aes128.nk):
+            for j in range(aes128.nk):
+                block[j * aes128.nk + i] = aes128.rsbox[block[j * aes128.nk + i]]
+                
+    def sub_bytes(self, block):
+        for i in range(aes128.nk):
+            for j in range(aes128.nk):
+                block[j * aes128.nk + i] = aes128.sbox[block[j * aes128.nk + i]]
 
     # mixes the columns of the data matrix
     # the method used to multiply may be difficult to understand for the inexperienced
     # please use the references to gain more information
     def inv_mix_columns(self, block):
-        for i in range(aes128_decryptor.nk):
-            a = block[i * aes128_decryptor.nk + 0]
-            b = block[i * aes128_decryptor.nk + 1]
-            c = block[i * aes128_decryptor.nk + 2]
-            d = block[i * aes128_decryptor.nk + 3]
+        for i in range(aes128.nk):
+            a = block[i * aes128.nk + 0]
+            b = block[i * aes128.nk + 1]
+            c = block[i * aes128.nk + 2]
+            d = block[i * aes128.nk + 3]
             
-            block[i * aes128_decryptor.nk + 0] = multiply(a, 0x0e) ^ multiply(b, 0x0b) ^ multiply(c, 0x0d) ^ multiply(d, 0x09)
-            block[i * aes128_decryptor.nk + 1] = multiply(a, 0x09) ^ multiply(b, 0x0e) ^ multiply(c, 0x0b) ^ multiply(d, 0x0d)
-            block[i * aes128_decryptor.nk + 2] = multiply(a, 0x0d) ^ multiply(b, 0x09) ^ multiply(c, 0x0e) ^ multiply(d, 0x0b)
-            block[i * aes128_decryptor.nk + 3] = multiply(a, 0x0b) ^ multiply(b, 0x0d) ^ multiply(c, 0x09) ^ multiply(d, 0x0e)
+            block[i * aes128.nk + 0] = multiply(a, 0x0e) ^ multiply(b, 0x0b) ^ multiply(c, 0x0d) ^ multiply(d, 0x09)
+            block[i * aes128.nk + 1] = multiply(a, 0x09) ^ multiply(b, 0x0e) ^ multiply(c, 0x0b) ^ multiply(d, 0x0d)
+            block[i * aes128.nk + 2] = multiply(a, 0x0d) ^ multiply(b, 0x09) ^ multiply(c, 0x0e) ^ multiply(d, 0x0b)
+            block[i * aes128.nk + 3] = multiply(a, 0x0b) ^ multiply(b, 0x0d) ^ multiply(c, 0x09) ^ multiply(d, 0x0e)
+            
+    # mix_columns function mixes the columns of the state matrix
+    def mix_columns(self, block):
+        for i in range(aes128.nk):
+            t   = block[i * aes128.nk + 0]
+            tmp = block[i * aes128.nk + 0] ^ block[i * aes128.nk + 1] ^ block[i * aes128.nk + 2] ^ block[i * aes128.nk + 3]
+            
+            tm = block[i * aes128.nk + 0] ^ block[i * aes128.nk + 1]
+            tm = xtime(tm)
+            block[i * aes128.nk + 0] ^= 0xFF & (tm ^ tmp)
+            
+            tm = block[i * aes128.nk + 1] ^ block[i * aes128.nk + 2]
+            tm = xtime(tm)
+            block[i * aes128.nk + 1] ^=  0xFF & (tm ^ tmp)
 
+            tm = block[i * aes128.nk + 2] ^ block[i * aes128.nk + 3]
+            tm = xtime(tm)
+            block[i * aes128.nk + 2] ^= 0xFF & (tm ^ tmp) 
+
+            tm = block[i * aes128.nk + 3] ^ t
+            tm = xtime(tm)
+            block[i * aes128.nk + 3] ^= 0xFF & (tm ^ tmp)
 
     def inv_cipher(self, block):
         # add the first round key to the state before starting the rounds
-        self.add_round_key(block, aes128_decryptor.nr) 
+        self.add_round_key(block, aes128.nr) 
         # there will be nr rounds
         # the first nr-1 rounds are identical
         # these nr-1 rounds are executed in the loop below
-        for round in reversed(range(1, aes128_decryptor.nr)):
+        for round in reversed(range(1, aes128.nr)):
             self.inv_shift_rows(block);
             self.inv_sub_bytes(block);
             self.add_round_key(block, round)
@@ -192,27 +242,101 @@ class aes128_decryptor:
         # bytes to chars
         return block
     
-
+    def cipher(self, block):
+        # add the first round key to the state before starting the rounds
+        self.add_round_key(block, 0)
+        # there will be nr rounds.
+        # the first nr-1 rounds are identical
+        # these nr-1 rounds are executed in the loop below
+        for round in range(1, aes128.nr):
+            self.sub_bytes(block)      
+            self.shift_rows(block)  
+            self.mix_columns(block)
+            self.add_round_key(block, round)
+        # the last round is given below
+        # the mix_ Columns function is not here in the last round
+        self.sub_bytes(block)      
+        self.shift_rows(block)  
+        self.add_round_key(block, aes128.nr)
+        # bytes to chars
+        return block
         
     def decrypt_ecb(self, txt, key):
         self.key_expansion(key)
         ret = array.array('B', [])
-        for i in  range(len(txt) / aes128_decryptor.keylen):
-            block = array.array('B', txt[i * aes128_decryptor.keylen : (i + 1) * aes128_decryptor.keylen])
+        remainder = len(txt) % aes128.keylen;
+        for i in  range(len(txt) / aes128.keylen):
+            block = array.array('B', txt[i * aes128.keylen : (i + 1) * aes128.keylen])
             ret += self.inv_cipher(block)
+        # handle reminder
+        if remainder > 0:
+            i = len(txt) / aes128.keylen
+            block = array.array('B', txt[i * aes128.keylen : i * aes128.keylen + remainder])
+            #padding
+            block.extend([0] * (aes128.keylen - remainder))
+            ret += self.inv_cipher(block)
+        # return the encrypted string            
+        return "".join(chr(b) for b in ret)
+    
+    def encrypt_ecb(self, txt, key):
+        self.key_expansion(key)
+        ret = array.array('B', [])
+        remainder = len(txt) % aes128.keylen;
+        for i in  range(len(txt) / aes128.keylen):
+            block = array.array('B', txt[i * aes128.keylen : (i + 1) * aes128.keylen])
+            ret += self.cipher(block)
+        # handle reminder
+        if remainder > 0:
+            i = len(txt) / aes128.keylen
+            block = array.array('B', txt[i * aes128.keylen : i * aes128.keylen + remainder])
+            #padding
+            block.extend([0] * (aes128.keylen - remainder))
+            ret += self.cipher(block)
+        # return the encrypted string                 
         return "".join(chr(b) for b in ret)
     
     def decrypt_cbc(self, txt, key, iv):
         self.key_expansion(key)        
         ret = array.array('B', [])
         iv_arr = array.array('B', iv)
-        remainder = len(txt) % aes128_decryptor.keylen;
-        for i in  range(len(txt) / aes128_decryptor.keylen):
-            block = array.array('B', txt[i * aes128_decryptor.keylen : (i + 1) * aes128_decryptor.keylen])
+        remainder = len(txt) % aes128.keylen;
+        for i in  range(len(txt) / aes128.keylen):
+            block = array.array('B', txt[i * aes128.keylen : (i + 1) * aes128.keylen])
             block = self.inv_cipher(block)
             ret += xor_bytes(block, iv_arr)
-            iv_arr = array.array('B', txt[i * aes128_decryptor.keylen : (i + 1) * aes128_decryptor.keylen])
+            iv_arr = array.array('B', txt[i * aes128.keylen : (i + 1) * aes128.keylen])
+        # handle reminder
+        if remainder > 0:
+            i = len(txt) / aes128.keylen
+            block = array.array('B', txt[i * aes128.keylen : i * aes128.keylen + remainder])
+            #padding
+            block.extend([0] * (aes128.keylen - remainder))
+            block = self.inv_cipher(block)
+            ret += xor_bytes(block, iv_arr)       
+        # return the decryptet string
         return "".join(chr(b) for b in ret)
+    
+    def encrypt_cbc(self, txt, key, iv):
+        self.key_expansion(key)        
+        ret = array.array('B', [])
+        iv_arr = array.array('B', iv)
+        remainder = len(txt) % aes128.keylen;
+        for i in  range(len(txt) / aes128.keylen):
+            block = array.array('B', txt[i * aes128.keylen : (i + 1) * aes128.keylen])
+            block = xor_bytes(block, iv_arr)
+            ret += self.cipher(block)
+            iv_arr = array.array('B', ret[i * aes128.keylen : (i + 1) * aes128.keylen])
+        # handle reminder
+        if remainder > 0:
+            i = len(txt) / aes128.keylen
+            block = array.array('B', txt[i * aes128.keylen : i * aes128.keylen + remainder])
+            #padding
+            block.extend([0] * (aes128.keylen - remainder))
+            block = xor_bytes(block, iv_arr)
+            ret += self.cipher(block)
+        # return the encrypted string
+        return "".join(chr(b) for b in ret)
+    
 
 def get_text():
     response = urllib2.urlopen('http://cryptopals.com/static/challenge-data/10.txt')
@@ -222,9 +346,8 @@ if __name__ == '__main__':
     txt = get_text()
     key = 'YELLOW SUBMARINE'
     iv = [0] * 16
-    d = aes128_decryptor()
+    d = aes128()
     print d.decrypt_cbc(txt, key, iv)
-    
-        
+ 
     
     
