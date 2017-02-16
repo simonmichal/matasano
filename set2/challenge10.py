@@ -7,7 +7,6 @@ Created on 18 Nov 2014
 import array
 import base64
 import urllib2
-from IN import TMP_MAX
 
 def xor_bytes(byte_arr1, byte_arr2):
     # create a byte array of xors
